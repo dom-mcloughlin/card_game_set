@@ -30,6 +30,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final indices = <int>[1, 2, 3];
+  var cards = <PlayingCard>{};
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
     cards.shuffle();
     while (ii < n) {
       PlayingCard card = cards.elementAt(ii);
+      this.cards.add(card);
       yield card;
       ii++;
     }
