@@ -74,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ];
 
   buildCardCombinations() => [
-        // Create all combinations of four indices.
+        // Create all combinations (3**4) of the four indices.
         // For example, a card combination of [1, 2, 1, 3] would correspond to
         // Shape 1, Colour 2, Texture 1, Number 3.
         for (var d in this.indices)
