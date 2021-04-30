@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 void main() {
   runApp(MyApp());
@@ -110,8 +111,10 @@ class _PlayingCardState extends State<PlayingCard> {
 
   final Color goldColor = Color(0xffffbf00);
 
+  final Color blueColor = Color(0xff82a5df);
+
   int myShapeIndex() {
-    return widget.name.elementAt(4) - 1;
+    return widget.name.elementAt(0) - 1;
   }
 
   int myColorIndex() {
@@ -139,6 +142,22 @@ class _PlayingCardState extends State<PlayingCard> {
     return blackColor;
   }
 
+  myIconShape() {
+    MediaQueryData queryData;
+    queryData = MediaQuery.of(context);
+
+    return Container(
+      child: CustomPaint(
+          painter: ShapePainter(
+        this.myShapeIndex(),
+        this.myColor(),
+        this.myTextureIndex(),
+        this.myNumberIndex(),
+        queryData.size.height * 0.03,
+      )),
+    );
+  }
+
   void toggleSelected() {
     setState(() {
       this.selectedCard = !this.selectedCard;
@@ -148,31 +167,137 @@ class _PlayingCardState extends State<PlayingCard> {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        shape: selectedCard
-            ? new RoundedRectangleBorder(
-                side: new BorderSide(color: goldColor, width: 5.0),
-                borderRadius: BorderRadius.circular(4.0))
-            : new RoundedRectangleBorder(
-                side: new BorderSide(color: Colors.white, width: 0),
-                borderRadius: BorderRadius.circular(4.0)),
-        color: myColor(),
-        child: new InkWell(
-          onTap: () {
-            this.toggleSelected();
-          },
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int ii = 0; ii < this.myNumberIndex(); ii++)
-                Text(
-                  this.widget.name.map((i) => i.toString()).join(","),
-                  textAlign: TextAlign.center,
-                ),
-            ],
+      child: Container(
+        child: Card(
+          shape: selectedCard
+              ? new RoundedRectangleBorder(
+                  side: new BorderSide(color: goldColor, width: 5.0),
+                  borderRadius: BorderRadius.circular(4.0))
+              : new RoundedRectangleBorder(
+                  side: new BorderSide(color: Colors.white, width: 0),
+                  borderRadius: BorderRadius.circular(4.0)),
+          color: blueColor,
+          child: new InkWell(
+            onTap: () {
+              this.toggleSelected();
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                myIconShape(),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+}
+
+class ShapePainter extends CustomPainter {
+  final int shapeShape;
+  final Color shapeColor;
+  final int shapeTexture;
+  final int shapeNumber;
+  final double shapeSize;
+
+  ShapePainter(this.shapeShape, this.shapeColor, this.shapeTexture,
+      this.shapeNumber, this.shapeSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // final double centerX = size.width / 2;
+    final double centerX = size.width/2;
+
+    Paint paint = Paint()
+      ..color = this.shapeColor
+      ..strokeWidth = 8.0;
+
+    switch (this.shapeTexture) {
+      case 0:
+        paint.style = PaintingStyle.fill;
+        break;
+      case 1:
+        paint.style = PaintingStyle.stroke;
+        break;
+      case 2:
+        paint.style = PaintingStyle.fill;
+        paint.shader = LinearGradient(
+          begin: Alignment.topLeft,
+          // end: Alignment.bottomRight,
+          stops: [0.0, 0.5, 0.5, 1],
+          colors: [this.shapeColor, Colors.white, this.shapeColor, Colors.white],
+          tileMode: TileMode.repeated,
+        ).createShader(Rect.fromCircle(
+            center: Offset(size.width / 2, 0), radius: this.shapeSize / 2));
+        break;
+    }
+
+    Path path = Path();
+    var myRectangles = <Rect>[];
+
+    switch (this.shapeNumber) {
+      case 1:
+        print(size.width);
+        print(size.height);
+        print(this.shapeSize);
+        Rect myRect = Offset(centerX - this.shapeSize, 0) &
+            Size(3 * this.shapeSize, this.shapeSize);
+
+        myRectangles.add(myRect);
+        break;
+      case 2:
+        Rect myRect1 = Offset(centerX - this.shapeSize, -this.shapeSize) &
+            Size(3 * this.shapeSize, this.shapeSize);
+        myRectangles.add(myRect1);
+
+        Rect myRect2 = Offset(centerX - this.shapeSize, this.shapeSize) &
+            Size(3 * this.shapeSize, this.shapeSize);
+        myRectangles.add(myRect2);
+        break;
+      case 3:
+        Rect myRect1 = Offset(centerX - this.shapeSize, -2 * this.shapeSize) &
+            Size(3 * this.shapeSize, this.shapeSize);
+        myRectangles.add(myRect1);
+
+        Rect myRect2 = Offset(centerX - this.shapeSize, 0) &
+            Size(3 * this.shapeSize, this.shapeSize);
+        myRectangles.add(myRect2);
+
+        Rect myRect3 = Offset(centerX - this.shapeSize, 2 * this.shapeSize) &
+            Size(3 * this.shapeSize, this.shapeSize);
+
+        myRectangles.add(myRect3);
+        break;
+    }
+
+    for (Rect myRect in myRectangles) {
+      switch (this.shapeShape) {
+        case 0:
+          path.addRRect(RRect.fromRectAndRadius(
+            myRect,
+            Radius.circular(15))
+            );
+          break;
+        case 1:
+          path.addOval(myRect);
+          break;
+        case 2:
+          path.moveTo(centerX - this.shapeSize, 0);
+          path.lineTo(centerX, this.shapeSize);
+          path.lineTo(centerX + this.shapeSize, 0);
+          path.lineTo(centerX, -this.shapeSize);
+          path.lineTo(centerX - this.shapeSize, 0);
+          path.close();
+          break;
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
