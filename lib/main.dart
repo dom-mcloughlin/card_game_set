@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 void main() {
   runApp(MyApp());
@@ -31,7 +30,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final indices = <int>[1, 2, 3];
-  var cards = <PlayingCard>{};
+  final int nRows = 4;
+  final int nColumns = 3;
+  var cards = <PlayingCard>[];
+  var activeCards = <PlayingCard>[];
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +57,22 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void setCardMarked(PlayingCard card) {
+    this.setState(() {
+      this.activeCards.remove(card);
+      print(card.name);
+      print("Calling: setCardMarked");
+    });
+  }
+
   buildCardRows() => [
-        for (int ii = 0; ii < 4; ii++)
-          Expanded(child: Row(children: nextCards(3).toList()))
+        for (int ii = 0; ii < this.nRows; ii++)
+          Expanded(
+              child: Row(
+                children: this.nextCards(this.nColumns).toList()
+                // children: this.activeCards.sublist(ii, ii + this.nColumns
+              )
+            )
       ];
 
   buildCardCombinations() => [
@@ -70,15 +85,19 @@ class _MyHomePageState extends State<MyHomePage> {
               for (int a in this.indices) [a, b, c, d]
       ];
 
-  List<PlayingCard> buildCards() =>
-      [for (var name in buildCardCombinations()) PlayingCard(name)];
+  List<PlayingCard> buildCards() => [
+        for (var name in buildCardCombinations())
+          PlayingCard(
+              name: name,
+              onSelected: (PlayingCard card) => this.setCardMarked(card))
+      ];
 
   Iterable<PlayingCard> nextCards(int n) sync* {
     // Build all 3**4 card combinations once only and shuffle.
     // Take the first n, add to end of list, and yield them.
     // Maybe this should be a Queue instead since taking first element.
     int ii = 0;
-    final List<PlayingCard> cards = buildCards();
+    this.cards = buildCards();
     cards.shuffle();
     while (ii < n) {
       PlayingCard card = cards.elementAt(ii);
@@ -86,13 +105,19 @@ class _MyHomePageState extends State<MyHomePage> {
       yield card;
       ii++;
     }
+    if (this.activeCards.length == 0)
+     this.activeCards = this.cards.sublist(0, this.nColumns * this.nRows);
   }
 }
 
 class PlayingCard extends StatefulWidget {
   final List name;
+  final Function onSelected;
 
-  PlayingCard(this.name);
+  PlayingCard({
+    required this.name,
+    required this.onSelected,
+  });
 
   @override
   _PlayingCardState createState() => _PlayingCardState();
@@ -159,9 +184,8 @@ class _PlayingCardState extends State<PlayingCard> {
   }
 
   void toggleSelected() {
-    setState(() {
-      this.selectedCard = !this.selectedCard;
-    });
+    this.selectedCard = !this.selectedCard;
+    widget.onSelected(widget);
   }
 
   @override
@@ -208,7 +232,7 @@ class ShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // final double centerX = size.width / 2;
-    final double centerX = size.width/2;
+    final double centerX = size.width / 2;
 
     Paint paint = Paint()
       ..color = this.shapeColor
@@ -227,7 +251,12 @@ class ShapePainter extends CustomPainter {
           begin: Alignment.topLeft,
           // end: Alignment.bottomRight,
           stops: [0.0, 0.5, 0.5, 1],
-          colors: [this.shapeColor, Colors.white, this.shapeColor, Colors.white],
+          colors: [
+            this.shapeColor,
+            Colors.white,
+            this.shapeColor,
+            Colors.white
+          ],
           tileMode: TileMode.repeated,
         ).createShader(Rect.fromCircle(
             center: Offset(size.width / 2, 0), radius: this.shapeSize / 2));
@@ -239,9 +268,6 @@ class ShapePainter extends CustomPainter {
 
     switch (this.shapeNumber) {
       case 1:
-        print(size.width);
-        print(size.height);
-        print(this.shapeSize);
         Rect myRect = Offset(centerX - this.shapeSize, 0) &
             Size(3 * this.shapeSize, this.shapeSize);
 
@@ -275,10 +301,7 @@ class ShapePainter extends CustomPainter {
     for (Rect myRect in myRectangles) {
       switch (this.shapeShape) {
         case 0:
-          path.addRRect(RRect.fromRectAndRadius(
-            myRect,
-            Radius.circular(15))
-            );
+          path.addRRect(RRect.fromRectAndRadius(myRect, Radius.circular(15)));
           break;
         case 1:
           path.addOval(myRect);
