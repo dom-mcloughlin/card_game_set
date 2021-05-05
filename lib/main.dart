@@ -83,9 +83,12 @@ class _MyHomePageState extends State<MyHomePage> {
           for (var cardCombination in cardCombinations) {
             groupSum += cardCombination.elementAt(group);
           }
-          if (invalidSums.contains(groupSum)) isSet = false;
+          if (invalidSums.contains(groupSum)) {
+            isSet = false;
+          }
         }
         if (isSet) {
+          print(cardCombinations);
           print('Congratulations!');
         } else {
           print('Nope');
@@ -118,9 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(children: [
           for (int jj = 0; jj < nColumns; jj++)
             currentCards.elementAt(ii * nColumns + jj)
-        ]
-                // children: this.activeCards.sublist(ii, ii + this.nColumns
-                ))
+        ]))
     ];
     return widgets;
   }
@@ -141,6 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } else if (tableCardIndices.isEmpty) {
       tableCardIndices = deckCardIndices.sublist(0, 12).cast<int>();
       deckCardIndices.removeRange(0, 12);
+
       myNextIndices = tableCardIndices.cast<int>();
     }
     return myNextIndices;
@@ -180,15 +182,15 @@ class _PlayingCardState extends State<PlayingCard> {
   }
 
   int myShapeIndex() {
-    return myCardCombination().elementAt(0) - 1;
+    return myCardCombination().elementAt(0);
   }
 
   int myColorIndex() {
-    return myCardCombination().elementAt(1) - 1;
+    return myCardCombination().elementAt(1);
   }
 
   int myTextureIndex() {
-    return myCardCombination().elementAt(2) - 1;
+    return myCardCombination().elementAt(2);
   }
 
   int myNumberIndex() {
@@ -196,16 +198,18 @@ class _PlayingCardState extends State<PlayingCard> {
   }
 
   Color myColor() {
-    if (myColorIndex() == 0) {
-      return pinkColor;
+    var colorEnum = allShapeColors.values[myColorIndex()];
+
+    switch (colorEnum) {
+      case allShapeColors.pink:
+        return pinkColor;
+      case allShapeColors.purple:
+        return purpleColor;
+      case allShapeColors.red:
+        return redColor;
+      default:
+        return blackColor;
     }
-    if (myColorIndex() == 1) {
-      return purpleColor;
-    }
-    if (myColorIndex() == 2) {
-      return redColor;
-    }
-    return blackColor;
   }
 
   Widget myIconShape() {
@@ -271,25 +275,24 @@ class ShapePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // final double centerX = size.width / 2;
     final centerX = size.width / 2;
 
     final paint = Paint()
       ..color = shapeColor
       ..strokeWidth = 8.0;
 
-    switch (shapeTexture) {
-      case 0:
+    var textureEnum = allShapeTextures.values[shapeTexture];
+    switch (textureEnum) {
+      case allShapeTextures.solid:
         paint.style = PaintingStyle.fill;
         break;
-      case 1:
+      case allShapeTextures.empty:
         paint.style = PaintingStyle.stroke;
         break;
-      case 2:
+      case allShapeTextures.stripey:
         paint.style = PaintingStyle.fill;
         paint.shader = LinearGradient(
           begin: Alignment.topLeft,
-          // end: Alignment.bottomRight,
           stops: [0.0, 0.5, 0.5, 1],
           colors: [shapeColor, Colors.white, shapeColor, Colors.white],
           tileMode: TileMode.repeated,
@@ -301,14 +304,15 @@ class ShapePainter extends CustomPainter {
     var path = Path();
     var myRectangles = <Rect>[];
 
-    switch (shapeNumber) {
-      case 1:
+    var numberEnum = allShapeNumbers.values[shapeNumber];
+    switch (numberEnum) {
+      case allShapeNumbers.one:
         var myRect =
             Offset(centerX - shapeSize, 0) & Size(3 * shapeSize, shapeSize);
 
         myRectangles.add(myRect);
         break;
-      case 2:
+      case allShapeNumbers.two:
         var myRect1 = Offset(centerX - shapeSize, -shapeSize) &
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
@@ -317,7 +321,7 @@ class ShapePainter extends CustomPainter {
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect2);
         break;
-      case 3:
+      case allShapeNumbers.three:
         var myRect1 = Offset(centerX - shapeSize, -2 * shapeSize) &
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
@@ -333,15 +337,16 @@ class ShapePainter extends CustomPainter {
         break;
     }
 
+    var shapeEnum = allShapeShapes.values[shapeShape];
     for (var myRect in myRectangles) {
-      switch (shapeShape) {
-        case 0:
+      switch (shapeEnum) {
+        case allShapeShapes.rrect:
           path.addRRect(RRect.fromRectAndRadius(myRect, Radius.circular(15)));
           break;
-        case 1:
+        case allShapeShapes.oval:
           path.addOval(myRect);
           break;
-        case 2:
+        case allShapeShapes.diamond:
           var dx = myRect.center.dx;
           var dy = myRect.center.dy;
           var height = shapeSize * 0.9;
@@ -352,13 +357,6 @@ class ShapePainter extends CustomPainter {
           path.lineTo(dx, dy - height);
           path.lineTo(dx - height, dy);
           path.close();
-
-          // path.moveTo(centerX - this.shapeSize, 0);
-          // path.lineTo(centerX, this.shapeSize);
-          // path.lineTo(centerX + this.shapeSize, 0);
-          // path.lineTo(centerX, -this.shapeSize);
-          // path.lineTo(centerX - this.shapeSize, 0);
-          // path.close();
           break;
       }
       canvas.drawPath(path, paint);
