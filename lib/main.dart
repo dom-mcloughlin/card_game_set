@@ -1,3 +1,4 @@
+import 'package:cardgameset/data/card_data.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -29,11 +30,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final indices = <int>[1, 2, 3];
   final int nRows = 4;
   final int nColumns = 3;
-  var cards = <PlayingCard>[];
-  var activeCards = <PlayingCard>[];
+  List deckCardIndices = allCardIndices;
+  List tableCardIndices = <int>[];
+  Set markedCardIndices = <int>{};
 
   @override
   Widget build(BuildContext context) {
@@ -58,64 +59,102 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void setCardMarked(PlayingCard card) {
-    this.setState(() {
-      this.activeCards.remove(card);
-      print(card.name);
-      print("Calling: setCardMarked");
+    setState(() {
+      if (markedCardIndices.contains(card.cardIndex)) {
+        markedCardIndices.remove(card.cardIndex);
+      } else {
+        markedCardIndices.add(card.cardIndex);
+      }
+      checkSet();
     });
   }
 
-  buildCardRows() => [
-        for (int ii = 0; ii < this.nRows; ii++)
-          Expanded(
-              child: Row(
-                children: this.nextCards(this.nColumns).toList()
-                // children: this.activeCards.sublist(ii, ii + this.nColumns
-              )
-            )
-      ];
+  void checkSet() {
+    var isSet = true;
+    print('Checking set...');
+    setState(() {
+      if (markedCardIndices.length == 3) {
+        var cardCombinations = [
+          for (var index in markedCardIndices)
+            allCardCombinations.elementAt(index)
+        ];
+        for (var group = 0; group < numberOfVariables; group++) {
+          var groupSum = 0;
+          for (var cardCombination in cardCombinations) {
+            groupSum += cardCombination.elementAt(group);
+          }
+          if (invalidSums.contains(groupSum)) isSet = false;
+        }
+        if (isSet) {
+          print('Congratulations!');
+        } else {
+          print('Nope');
+          markedCardIndices.clear();
+        }
+      } else {
+        isSet = false;
+      }
+      if (isSet) {
+        deckCardIndices.shuffle();
 
-  buildCardCombinations() => [
-        // Create all combinations (3**4) of the four indices.
-        // For example, a card combination of [1, 2, 1, 3] would correspond to
-        // Shape 1, Colour 2, Texture 1, Number 3.
-        for (int d in this.indices)
-          for (int c in this.indices)
-            for (int b in this.indices)
-              for (int a in this.indices) [a, b, c, d]
-      ];
+        for (var oldCardIndex in markedCardIndices) {
+          int newCardIndex = deckCardIndices.elementAt(0);
+          deckCardIndices.removeAt(0);
+          var tableIndex = tableCardIndices.indexOf(oldCardIndex);
+          tableCardIndices.removeAt(tableIndex);
+          tableCardIndices.insert(tableIndex, newCardIndex);
+          deckCardIndices.add(oldCardIndex);
+        }
+        markedCardIndices.clear();
+      }
+    });
+  }
+
+  List<Widget> buildCardRows() {
+    final currentCards = buildCards();
+    final widgets = [
+      for (int ii = 0; ii < nRows; ii++)
+        Expanded(
+            child: Row(children: [
+          for (int jj = 0; jj < nColumns; jj++)
+            currentCards.elementAt(ii * nColumns + jj)
+        ]
+                // children: this.activeCards.sublist(ii, ii + this.nColumns
+                ))
+    ];
+    return widgets;
+  }
 
   List<PlayingCard> buildCards() => [
-        for (var name in buildCardCombinations())
+        for (int index in nextIndices().toList())
           PlayingCard(
-              name: name,
-              onSelected: (PlayingCard card) => this.setCardMarked(card))
+              cardIndex: index,
+              isSelected: markedCardIndices.contains(index),
+              onSelected: (PlayingCard card) => setCardMarked(card))
       ];
 
-  Iterable<PlayingCard> nextCards(int n) sync* {
-    // Build all 3**4 card combinations once only and shuffle.
-    // Take the first n, add to end of list, and yield them.
-    // Maybe this should be a Queue instead since taking first element.
-    int ii = 0;
-    this.cards = buildCards();
-    cards.shuffle();
-    while (ii < n) {
-      PlayingCard card = cards.elementAt(ii);
-      this.cards.add(card);
-      yield card;
-      ii++;
+  List<int> nextIndices() {
+    var myNextIndices = <int>[];
+    deckCardIndices.shuffle();
+    if (tableCardIndices.length == 12) {
+      myNextIndices = tableCardIndices.cast<int>();
+    } else if (tableCardIndices.isEmpty) {
+      tableCardIndices = deckCardIndices.sublist(0, 12).cast<int>();
+      deckCardIndices.removeRange(0, 12);
+      myNextIndices = tableCardIndices.cast<int>();
     }
-    if (this.activeCards.length == 0)
-     this.activeCards = this.cards.sublist(0, this.nColumns * this.nRows);
+    return myNextIndices;
   }
 }
 
 class PlayingCard extends StatefulWidget {
-  final List name;
+  final int cardIndex;
+  final bool isSelected;
   final Function onSelected;
 
   PlayingCard({
-    required this.name,
+    required this.cardIndex,
+    required this.isSelected,
     required this.onSelected,
   });
 
@@ -124,8 +163,6 @@ class PlayingCard extends StatefulWidget {
 }
 
 class _PlayingCardState extends State<PlayingCard> {
-  bool selectedCard = false;
-
   final Color pinkColor = Color(0xffffa8cb);
 
   final Color purpleColor = Color(0xff784283);
@@ -138,20 +175,24 @@ class _PlayingCardState extends State<PlayingCard> {
 
   final Color blueColor = Color(0xff82a5df);
 
+  List<int> myCardCombination() {
+    return allCardCombinations.elementAt(widget.cardIndex);
+  }
+
   int myShapeIndex() {
-    return widget.name.elementAt(0) - 1;
+    return myCardCombination().elementAt(0) - 1;
   }
 
   int myColorIndex() {
-    return widget.name.elementAt(1) - 1;
+    return myCardCombination().elementAt(1) - 1;
   }
 
   int myTextureIndex() {
-    return widget.name.elementAt(2) - 1;
+    return myCardCombination().elementAt(2) - 1;
   }
 
   int myNumberIndex() {
-    return widget.name.elementAt(3);
+    return myCardCombination().elementAt(3);
   }
 
   Color myColor() {
@@ -167,24 +208,23 @@ class _PlayingCardState extends State<PlayingCard> {
     return blackColor;
   }
 
-  myIconShape() {
+  Widget myIconShape() {
     MediaQueryData queryData;
     queryData = MediaQuery.of(context);
 
     return Container(
       child: CustomPaint(
           painter: ShapePainter(
-        this.myShapeIndex(),
-        this.myColor(),
-        this.myTextureIndex(),
-        this.myNumberIndex(),
+        myShapeIndex(),
+        myColor(),
+        myTextureIndex(),
+        myNumberIndex(),
         queryData.size.height * 0.03,
       )),
     );
   }
 
   void toggleSelected() {
-    this.selectedCard = !this.selectedCard;
     widget.onSelected(widget);
   }
 
@@ -193,17 +233,17 @@ class _PlayingCardState extends State<PlayingCard> {
     return Expanded(
       child: Container(
         child: Card(
-          shape: selectedCard
-              ? new RoundedRectangleBorder(
-                  side: new BorderSide(color: goldColor, width: 5.0),
+          shape: widget.isSelected
+              ? RoundedRectangleBorder(
+                  side: BorderSide(color: goldColor, width: 5.0),
                   borderRadius: BorderRadius.circular(4.0))
-              : new RoundedRectangleBorder(
-                  side: new BorderSide(color: Colors.white, width: 0),
+              : RoundedRectangleBorder(
+                  side: BorderSide(color: Colors.white, width: 0),
                   borderRadius: BorderRadius.circular(4.0)),
           color: blueColor,
-          child: new InkWell(
+          child: InkWell(
             onTap: () {
-              this.toggleSelected();
+              toggleSelected();
             },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -232,13 +272,13 @@ class ShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // final double centerX = size.width / 2;
-    final double centerX = size.width / 2;
+    final centerX = size.width / 2;
 
-    Paint paint = Paint()
-      ..color = this.shapeColor
+    final paint = Paint()
+      ..color = shapeColor
       ..strokeWidth = 8.0;
 
-    switch (this.shapeTexture) {
+    switch (shapeTexture) {
       case 0:
         paint.style = PaintingStyle.fill;
         break;
@@ -251,55 +291,50 @@ class ShapePainter extends CustomPainter {
           begin: Alignment.topLeft,
           // end: Alignment.bottomRight,
           stops: [0.0, 0.5, 0.5, 1],
-          colors: [
-            this.shapeColor,
-            Colors.white,
-            this.shapeColor,
-            Colors.white
-          ],
+          colors: [shapeColor, Colors.white, shapeColor, Colors.white],
           tileMode: TileMode.repeated,
         ).createShader(Rect.fromCircle(
-            center: Offset(size.width / 2, 0), radius: this.shapeSize / 2));
+            center: Offset(size.width / 2, 0), radius: shapeSize / 2));
         break;
     }
 
-    Path path = Path();
+    var path = Path();
     var myRectangles = <Rect>[];
 
-    switch (this.shapeNumber) {
+    switch (shapeNumber) {
       case 1:
-        Rect myRect = Offset(centerX - this.shapeSize, 0) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect =
+            Offset(centerX - shapeSize, 0) & Size(3 * shapeSize, shapeSize);
 
         myRectangles.add(myRect);
         break;
       case 2:
-        Rect myRect1 = Offset(centerX - this.shapeSize, -this.shapeSize) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect1 = Offset(centerX - shapeSize, -shapeSize) &
+            Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
 
-        Rect myRect2 = Offset(centerX - this.shapeSize, this.shapeSize) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect2 = Offset(centerX - shapeSize, shapeSize) &
+            Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect2);
         break;
       case 3:
-        Rect myRect1 = Offset(centerX - this.shapeSize, -2 * this.shapeSize) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect1 = Offset(centerX - shapeSize, -2 * shapeSize) &
+            Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
 
-        Rect myRect2 = Offset(centerX - this.shapeSize, 0) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect2 =
+            Offset(centerX - shapeSize, 0) & Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect2);
 
-        Rect myRect3 = Offset(centerX - this.shapeSize, 2 * this.shapeSize) &
-            Size(3 * this.shapeSize, this.shapeSize);
+        var myRect3 = Offset(centerX - shapeSize, 2 * shapeSize) &
+            Size(3 * shapeSize, shapeSize);
 
         myRectangles.add(myRect3);
         break;
     }
 
-    for (Rect myRect in myRectangles) {
-      switch (this.shapeShape) {
+    for (var myRect in myRectangles) {
+      switch (shapeShape) {
         case 0:
           path.addRRect(RRect.fromRectAndRadius(myRect, Radius.circular(15)));
           break;
@@ -307,12 +342,23 @@ class ShapePainter extends CustomPainter {
           path.addOval(myRect);
           break;
         case 2:
-          path.moveTo(centerX - this.shapeSize, 0);
-          path.lineTo(centerX, this.shapeSize);
-          path.lineTo(centerX + this.shapeSize, 0);
-          path.lineTo(centerX, -this.shapeSize);
-          path.lineTo(centerX - this.shapeSize, 0);
+          var dx = myRect.center.dx;
+          var dy = myRect.center.dy;
+          var height = shapeSize * 0.9;
+          if (shapeTexture == 1) height = height * 0.8;
+          path.moveTo(dx - height, dy);
+          path.lineTo(dx, dy + height);
+          path.lineTo(dx + height, dy);
+          path.lineTo(dx, dy - height);
+          path.lineTo(dx - height, dy);
           path.close();
+
+          // path.moveTo(centerX - this.shapeSize, 0);
+          // path.lineTo(centerX, this.shapeSize);
+          // path.lineTo(centerX + this.shapeSize, 0);
+          // path.lineTo(centerX, -this.shapeSize);
+          // path.lineTo(centerX - this.shapeSize, 0);
+          // path.close();
           break;
       }
       canvas.drawPath(path, paint);
