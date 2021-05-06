@@ -1,4 +1,5 @@
 import 'package:cardgameset/data/card_data.dart';
+import 'package:cardgameset/services/card_set_logic.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -32,9 +33,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final int nRows = 4;
   final int nColumns = 3;
-  List deckCardIndices = allCardIndices;
-  List tableCardIndices = <int>[];
-  Set markedCardIndices = <int>{};
+  List<CardData> deckCards = allCards;
+  List<CardData> tableCards = <CardData>[];
+  Set markedCards = <CardData>{};
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +59,12 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void setCardMarked(PlayingCard card) {
+  void setCardMarked(PlayingCard playingCard) {
     setState(() {
-      if (markedCardIndices.contains(card.cardIndex)) {
-        markedCardIndices.remove(card.cardIndex);
+      if (markedCards.contains(playingCard.card)) {
+        markedCards.remove(playingCard.card);
       } else {
-        markedCardIndices.add(card.cardIndex);
+        markedCards.add(playingCard.card);
       }
       checkSet();
     });
@@ -73,42 +74,27 @@ class _MyHomePageState extends State<MyHomePage> {
     var isSet = true;
     print('Checking set...');
     setState(() {
-      if (markedCardIndices.length == 3) {
-        var cardCombinations = [
-          for (var index in markedCardIndices)
-            allCardCombinations.elementAt(index)
-        ];
-        for (var group = 0; group < numberOfVariables; group++) {
-          var groupSum = 0;
-          for (var cardCombination in cardCombinations) {
-            groupSum += cardCombination.elementAt(group);
-          }
-          if (invalidSums.contains(groupSum)) {
-            isSet = false;
-          }
-        }
-        if (isSet) {
-          print(cardCombinations);
-          print('Congratulations!');
+      if (markedCards.length == 3) {
+        if (isMatchingSet(List<CardData>.from(markedCards))) {
+          isSet = true;
         } else {
-          print('Nope');
-          markedCardIndices.clear();
+          isSet = false;
         }
       } else {
         isSet = false;
       }
       if (isSet) {
-        deckCardIndices.shuffle();
+        deckCards.shuffle();
 
-        for (var oldCardIndex in markedCardIndices) {
-          int newCardIndex = deckCardIndices.elementAt(0);
-          deckCardIndices.removeAt(0);
-          var tableIndex = tableCardIndices.indexOf(oldCardIndex);
-          tableCardIndices.removeAt(tableIndex);
-          tableCardIndices.insert(tableIndex, newCardIndex);
-          deckCardIndices.add(oldCardIndex);
+        for (var oldCard in markedCards) {
+          final newCard = deckCards.elementAt(0);
+          deckCards.removeAt(0);
+          var tableCardIndex = tableCards.indexOf(oldCard);
+          tableCards.remove(oldCard);
+          tableCards.insert(tableCardIndex, newCard);
+          deckCards.add(oldCard);
         }
-        markedCardIndices.clear();
+        markedCards.clear();
       }
     });
   }
@@ -127,44 +113,35 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   List<PlayingCard> buildCards() => [
-        for (int index in nextIndices().toList())
+        for (CardData card in nextCards())
           PlayingCard(
-              cardIndex: index,
-              isSelected: markedCardIndices.contains(index),
+              card: card,
+              isSelected: markedCards.contains(card),
               onSelected: (PlayingCard card) => setCardMarked(card))
       ];
 
-  List<int> nextIndices() {
-    var myNextIndices = <int>[];
-    deckCardIndices.shuffle();
-    if (tableCardIndices.length == 12) {
-      myNextIndices = tableCardIndices.cast<int>();
-    } else if (tableCardIndices.isEmpty) {
-      tableCardIndices = deckCardIndices.sublist(0, 12).cast<int>();
-      deckCardIndices.removeRange(0, 12);
-
-      myNextIndices = tableCardIndices.cast<int>();
+  List<CardData> nextCards() {
+    deckCards.shuffle();
+    if (tableCards.length == 12) {
+    } else if (tableCards.isEmpty) {
+      tableCards = deckCards.sublist(0, 12);
+      deckCards.removeRange(0, 12);
     }
-    return myNextIndices;
+    return tableCards;
   }
 }
 
-class PlayingCard extends StatefulWidget {
-  final int cardIndex;
+class PlayingCard extends StatelessWidget {
+  final CardData card;
   final bool isSelected;
   final Function onSelected;
 
   PlayingCard({
-    required this.cardIndex,
+    required this.card,
     required this.isSelected,
     required this.onSelected,
   });
 
-  @override
-  _PlayingCardState createState() => _PlayingCardState();
-}
-
-class _PlayingCardState extends State<PlayingCard> {
   final Color pinkColor = Color(0xffffa8cb);
 
   final Color purpleColor = Color(0xff784283);
@@ -177,59 +154,22 @@ class _PlayingCardState extends State<PlayingCard> {
 
   final Color blueColor = Color(0xff82a5df);
 
-  List<int> myCardCombination() {
-    return allCardCombinations.elementAt(widget.cardIndex);
-  }
-
-  int myShapeIndex() {
-    return myCardCombination().elementAt(0);
-  }
-
-  int myColorIndex() {
-    return myCardCombination().elementAt(1);
-  }
-
-  int myTextureIndex() {
-    return myCardCombination().elementAt(2);
-  }
-
-  int myNumberIndex() {
-    return myCardCombination().elementAt(3);
-  }
-
-  Color myColor() {
-    var colorEnum = allShapeColors.values[myColorIndex()];
-
-    switch (colorEnum) {
-      case allShapeColors.pink:
-        return pinkColor;
-      case allShapeColors.purple:
-        return purpleColor;
-      case allShapeColors.red:
-        return redColor;
-      default:
-        return blackColor;
-    }
-  }
-
-  Widget myIconShape() {
+  Widget myIconShape(BuildContext context) {
     MediaQueryData queryData;
     queryData = MediaQuery.of(context);
 
     return Container(
       child: CustomPaint(
-          painter: ShapePainter(
-        myShapeIndex(),
-        myColor(),
-        myTextureIndex(),
-        myNumberIndex(),
-        queryData.size.height * 0.03,
-      )),
+        painter: ShapePainter(
+          card,
+          queryData.size.height * 0.03,
+        ),
+      ),
     );
   }
 
   void toggleSelected() {
-    widget.onSelected(widget);
+    onSelected(this);
   }
 
   @override
@@ -237,7 +177,7 @@ class _PlayingCardState extends State<PlayingCard> {
     return Expanded(
       child: Container(
         child: Card(
-          shape: widget.isSelected
+          shape: isSelected
               ? RoundedRectangleBorder(
                   side: BorderSide(color: goldColor, width: 5.0),
                   borderRadius: BorderRadius.circular(4.0))
@@ -253,7 +193,7 @@ class _PlayingCardState extends State<PlayingCard> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                myIconShape(),
+                myIconShape(context),
               ],
             ),
           ),
@@ -264,55 +204,54 @@ class _PlayingCardState extends State<PlayingCard> {
 }
 
 class ShapePainter extends CustomPainter {
-  final int shapeShape;
-  final Color shapeColor;
-  final int shapeTexture;
-  final int shapeNumber;
+  final CardData card;
   final double shapeSize;
 
-  ShapePainter(this.shapeShape, this.shapeColor, this.shapeTexture,
-      this.shapeNumber, this.shapeSize);
+  ShapePainter(this.card, this.shapeSize);
 
   @override
   void paint(Canvas canvas, Size size) {
     final centerX = size.width / 2;
 
     final paint = Paint()
-      ..color = shapeColor
+      ..color = card.cardColor()
       ..strokeWidth = 8.0;
 
-    var textureEnum = allShapeTextures.values[shapeTexture];
-    switch (textureEnum) {
-      case allShapeTextures.solid:
+    switch (card.texture) {
+      case ShapeTexture.solid:
         paint.style = PaintingStyle.fill;
         break;
-      case allShapeTextures.empty:
+      case ShapeTexture.empty:
         paint.style = PaintingStyle.stroke;
         break;
-      case allShapeTextures.stripey:
+      case ShapeTexture.stripey:
         paint.style = PaintingStyle.fill;
         paint.shader = LinearGradient(
           begin: Alignment.topLeft,
           stops: [0.0, 0.5, 0.5, 1],
-          colors: [shapeColor, Colors.white, shapeColor, Colors.white],
+          colors: [
+            card.cardColor(),
+            Colors.white,
+            card.cardColor(),
+            Colors.white
+          ],
           tileMode: TileMode.repeated,
         ).createShader(Rect.fromCircle(
             center: Offset(size.width / 2, 0), radius: shapeSize / 2));
         break;
     }
 
-    var path = Path();
+    final path = Path();
     var myRectangles = <Rect>[];
 
-    var numberEnum = allShapeNumbers.values[shapeNumber];
-    switch (numberEnum) {
-      case allShapeNumbers.one:
+    switch (card.number) {
+      case ShapeNumber.one:
         var myRect =
             Offset(centerX - shapeSize, 0) & Size(3 * shapeSize, shapeSize);
 
         myRectangles.add(myRect);
         break;
-      case allShapeNumbers.two:
+      case ShapeNumber.two:
         var myRect1 = Offset(centerX - shapeSize, -shapeSize) &
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
@@ -321,7 +260,7 @@ class ShapePainter extends CustomPainter {
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect2);
         break;
-      case allShapeNumbers.three:
+      case ShapeNumber.three:
         var myRect1 = Offset(centerX - shapeSize, -2 * shapeSize) &
             Size(3 * shapeSize, shapeSize);
         myRectangles.add(myRect1);
@@ -337,20 +276,19 @@ class ShapePainter extends CustomPainter {
         break;
     }
 
-    var shapeEnum = allShapeShapes.values[shapeShape];
     for (var myRect in myRectangles) {
-      switch (shapeEnum) {
-        case allShapeShapes.rrect:
+      switch (card.shape) {
+        case ShapeShape.rrect:
           path.addRRect(RRect.fromRectAndRadius(myRect, Radius.circular(15)));
           break;
-        case allShapeShapes.oval:
+        case ShapeShape.oval:
           path.addOval(myRect);
           break;
-        case allShapeShapes.diamond:
+        case ShapeShape.diamond:
           var dx = myRect.center.dx;
           var dy = myRect.center.dy;
           var height = shapeSize * 0.9;
-          if (shapeTexture == 1) height = height * 0.8;
+          if (card.texture == ShapeTexture.empty) height = height * 0.8;
           path.moveTo(dx - height, dy);
           path.lineTo(dx, dy + height);
           path.lineTo(dx + height, dy);
