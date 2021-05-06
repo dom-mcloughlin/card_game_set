@@ -53,4 +53,17 @@ void main() {
     });
   });
 
+  group('Check for valid sets', () {
+    test('Should be (81 Choose 2) / 3 valid sets in the full deck', () {
+      var cards = allCards;
+      final matchingSets = allMatchingSets(cards);
+      expect(matchingSets.length, equals(1080));
+    });
+
+    test('Should be (81 Choose 3) triplet sets in the full deck', () {
+      var cards = allCards;
+      final tripletSets = allTripletSubsets(cards);
+      expect(tripletSets.length.toInt(), equals(85320));
+    });
+  });
 }

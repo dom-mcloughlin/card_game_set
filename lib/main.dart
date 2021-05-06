@@ -127,6 +127,8 @@ class _MyHomePageState extends State<MyHomePage> {
       tableCards = deckCards.sublist(0, 12);
       deckCards.removeRange(0, 12);
     }
+    final n = allMatchingSets(tableCards).length;
+    print('There are $n sets in this board');
     return tableCards;
   }
 }
@@ -179,7 +181,7 @@ class PlayingCard extends StatelessWidget {
         child: Card(
           shape: isSelected
               ? RoundedRectangleBorder(
-                  side: BorderSide(color: goldColor, width: 5.0),
+                  side: BorderSide(color: goldColor, width: 15.0),
                   borderRadius: BorderRadius.circular(4.0))
               : RoundedRectangleBorder(
                   side: BorderSide(color: Colors.white, width: 0),
